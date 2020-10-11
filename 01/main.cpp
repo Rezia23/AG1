@@ -47,6 +47,13 @@ public:
         this->prev_vertex = previous;
         this->distanceFromStart = distance;
     }
+    void print(){
+        cout<< "id: "<<planetID << " type: " << type <<" stateDFS, BFS: " << this->dfsState << this->bfsState << "neighbours: ";
+        for(auto n: neighbours){
+            cout<<n;
+        }
+        cout<<endl;
+    }
 };
 
 
@@ -100,7 +107,7 @@ vector<int> findPlanetNeighbours(int planet, vector<vector<int>> edges) {
     return neighbours;
 }
 
-void bfsInRange(vector<shared_ptr<Vertex>> & graph, int end, int range) {
+void bfsInRange(vector<shared_ptr<Vertex>> & graph, int end, int range, int beginning) {
     queue<int> q;
     q.push(end);
     graph[end]->distanceFromEnd = 0;
@@ -114,6 +121,9 @@ void bfsInRange(vector<shared_ptr<Vertex>> & graph, int end, int range) {
         graph[curr]->setBFSState(OPEN);
         for(int i = 0; i< graph[curr]->numNeighbours(); i++){
             int neighbour = graph[curr]->neighbours[i];
+            if(neighbour==beginning){
+                //TODO
+            }
             if(graph[neighbour]->bfsState == UNVISITED){
                 q.push(neighbour);
                 graph[neighbour]->pushToQueue(curr, graph[curr]->distanceFromEnd+1);
@@ -130,33 +140,61 @@ bool dfsInRange(vector<shared_ptr<Vertex>> & graph, int beginning, int end, int 
     while(!s.empty()){
         int curr = s.top();
         s.pop();
-
         //TODO: for bonus should be shorter than max(3d*n,n)
-        if(graph[curr]->distanceFromStart==graph.size()){
+        if(graph[curr]->distanceFromStart==int(graph.size())){
             continue;
         }
         graph[curr]->setDFSState(OPEN);
         for(int i = 0; i< graph[curr]->numNeighbours(); i++){
             int neighbour = graph[curr]->neighbours[i];
             if(graph[neighbour]->dfsState == UNVISITED){
+                if(graph[neighbour]->type == END){
+                    graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromEnd+1);
+                    return true;
+                }
+                ///////////begining of ugly copy paste
+                if(graph[neighbour]->reachableEndWhenInfected){
+                    graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromEnd+1);
+                    int prev = neighbour;
+                    int next = graph[neighbour]->following_vertex;
+                    while(graph[next]->type != END){
+                        graph[next]->prev_vertex = prev;
+                        prev = next;
+                        next = graph[next]->following_vertex;
+                    }
+                    graph[next]->prev_vertex = prev;
+
+                    return true;
+                }
+                /////////////end of ugly copy paste
                 if(graph[neighbour]->type==INFECTED){
-                    if(graph[neighbour]->reachableEndWhenInfected==false || graph[neighbour]->distanceFromEnd + graph[curr]->distanceFromStart + 1 > graph.size()){ //todo should also be max(3dn, n)
+                    if(!graph[neighbour]->reachableEndWhenInfected || graph[neighbour]->distanceFromEnd + graph[curr]->distanceFromStart + 1 > int(graph.size())){ //todo should also be max(3dn, n)
                         continue;
                     }else{
-                        ///////////////TODO find way to end
+                        graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromEnd+1);
+                        int prev = neighbour;
+                        int next = graph[neighbour]->following_vertex;
+                        while(graph[next]->type != END){
+                            graph[next]->prev_vertex = prev;
+                            prev = next;
+                            next = graph[next]->following_vertex;
+                        }
+                        graph[next]->prev_vertex = prev;
+
+                        return true;
                     }
                 }
                 s.push(neighbour);
                 graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromEnd+1);
-                if(graph[neighbour]->type == END){
-                    return true;
-                }
+
             }
         }
         graph[curr]->setDFSState(CLOSED);
     }
     return false;
 }
+
+
 
 int main() {
 
@@ -187,12 +225,22 @@ int main() {
         graph[i] =
     make_shared<Vertex>(i, findPlanetType(i, beginning, end, infectedPlanets, hospitals), findPlanetNeighbours(i, edges));
     }
-    bfsInRange(graph, end,numDaysSurvived);
-    for(auto vertex: graph){
-        cout<<vertex->planetID << "following" << vertex->following_vertex<<endl;
+    bfsInRange(graph, end,numDaysSurvived, beginning);
+    if(!dfsInRange(graph, beginning, end, numDaysSurvived)){
+        cout<<-1;
+    }else{
+        int next = end;
+        vector<int> results;
+        while(next!=beginning){
+            results.push_back(graph[next]->planetID);
+            next = graph[next]->prev_vertex;
+        }
+        results.push_back(graph[next]->planetID);
+        for(size_t i = results.size()-1; i>0;i--){
+            cout<<results[i]<<" ";
+        }
+        cout<<results[0];
     }
-    dfsInRange(graph, beginning, end, numDaysSurvived);
-
     return 0;
 }
 
