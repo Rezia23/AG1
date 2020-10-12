@@ -29,6 +29,10 @@ public:
     State dfsState = UNVISITED;
     vector<int> neighbours;
 
+    Vertex(int planetID){
+        this->planetID = planetID;
+        this->type = NORMAL;
+    }
 
     Vertex(int planetID, PlanetType type, const vector<int> &neighbours) {
         this->planetID = planetID;
@@ -203,8 +207,6 @@ bool dfsInRange(const vector<shared_ptr<Vertex>> &graph, int beginning, int end,
 
 
 int main() {
-
-    ////////////////////////read Input
     int numPlanets, numEdges;
     int beginning, end, numDaysSurvived;
     int numPlanetsInfected;
@@ -213,25 +215,39 @@ int main() {
     set<int> infectedPlanets;
     set<int> hospitals;
 
-    // TODO: decompose
+
     cin >> numPlanets >> numEdges >> beginning >> end >> numDaysSurvived >> numPlanetsInfected;
+    vector<shared_ptr<Vertex>> graph;
+    graph.reserve(numPlanets);
+
+    for (int i = 0; i < numPlanets; i++) {
+        graph.push_back(make_shared<Vertex>(i));
+    }
+    graph[beginning]->type = BEGINNING;
+    graph[end]->type = END;
+
     if (numPlanetsInfected > 0) {
-        infectedPlanets = readValues(numPlanetsInfected);
+        for(int i = 0; i<numPlanetsInfected;i++){
+            int tmp;
+            cin>>tmp;
+            graph[tmp]->type = INFECTED;
+        }
     }
     cin >> numHospitals;
     if (numHospitals > 0) {
-        hospitals = readValues(numHospitals);
+        for(int i = 0; i<numHospitals;i++){
+            int tmp;
+            cin>>tmp;
+            graph[tmp]->type = HOSPITAL;
+        }
     }
-    edges = readEdges(numEdges);
+    for(int i = 0; i<numEdges;i++){
+        int tmp1, tmp2;
+        cin >> tmp1 >> tmp2;
+        graph[tmp1]->neighbours.push_back(tmp2);
+        graph[tmp2]->neighbours.push_back(tmp1);
+    }
 
-    ///////////////create graph
-    vector<shared_ptr<Vertex>> graph;
-    graph.resize(numPlanets);
-    for (int i = 0; i < numPlanets; i++) {
-        graph[i] =
-                make_shared<Vertex>(i, findPlanetType(i, beginning, end, infectedPlanets, hospitals),
-                                    findPlanetNeighbours(i, edges));
-    }
     ////////////////////////////////bfs around end
     if (bfsInRange(graph, end, numDaysSurvived, beginning)) {
         int next = end;
