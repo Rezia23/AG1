@@ -86,16 +86,16 @@ bool bfsInRange(const vector<shared_ptr<Vertex>> &graph, int end, int range, int
         int curr = q.front();
         q.pop();
         graph[curr]->reachableEndWhenInfected = true;
+        if (graph[curr]->type == BEGINNING) {
+            findWayFromReachable(graph, curr);
+            return true;
+        }
         if (graph[curr]->distanceFromEnd >= range) {
-            break;
+            return false;
         }
         for (int i = 0; i < graph[curr]->numNeighbours(); i++) {
             int neighbour = graph[curr]->neighbours[i];
-            if (graph[neighbour]->type == BEGINNING) {
-                graph[neighbour]->pushToQueue(curr, graph[curr]->distanceFromEnd + 1);
-                findWayFromReachable(graph, neighbour);
-                return true;
-            }
+
             if (!graph[neighbour]->reachableEndWhenInfected) {
                 q.push(neighbour);
                 graph[neighbour]->pushToQueue(curr, graph[curr]->distanceFromEnd + 1);
@@ -113,6 +113,15 @@ bool dfsInRange(const vector<shared_ptr<Vertex>> &graph, int beginning, int end,
     while (!s.empty()) {
         int curr = s.top();
         s.pop();
+
+        if (graph[curr]->type == END) {
+            return true;
+        }
+        if (graph[curr]->reachableEndWhenInfected &&
+            graph[curr]->distanceFromEnd + graph[curr]->distanceFromStart + 1 <= int(graph.size())) { //todo for bonus should be max(3dn, n)
+            findWayFromReachable(graph, curr);
+            return true;
+        }
         //TODO: for bonus should be shorter than max(3d*n,n)
         if (graph[curr]->distanceFromStart + numDaysSurvived >= int(graph.size())) {
             continue;
@@ -121,17 +130,7 @@ bool dfsInRange(const vector<shared_ptr<Vertex>> &graph, int beginning, int end,
         for (int i = 0; i < graph[curr]->numNeighbours(); i++) {
             int neighbour = graph[curr]->neighbours[i];
             if (graph[neighbour]->dfsState == UNVISITED) {
-                if (graph[neighbour]->type == END) {
-                    graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromEnd + 1);
-                    return true;
-                }
-                if (graph[neighbour]->reachableEndWhenInfected &&
-                    graph[neighbour]->distanceFromEnd + graph[curr]->distanceFromStart + 1 <= int(graph.size())) { //todo for bonus should be max(3dn, n)
-                    graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromStart + 1);
-                    findWayFromReachable(graph, neighbour);
-                    return true;
-                }
-                if (graph[neighbour]->type == INFECTED) {
+                if (graph[neighbour]->type == INFECTED && !graph[neighbour]->reachableEndWhenInfected) {
                     continue;
                 }
                 s.push(neighbour);
@@ -181,10 +180,6 @@ int main() {
     int beginning, end, numDaysSurvived;
     int numPlanetsInfected;
     int numHospitals;
-    vector<vector<int>> edges;
-    set<int> infectedPlanets;
-    set<int> hospitals;
-
 
     cin >> numPlanets >> numEdges >> beginning >> end >> numDaysSurvived >> numPlanetsInfected;
     vector<shared_ptr<Vertex>> graph;
@@ -212,6 +207,13 @@ int main() {
         printResults(graph, beginning, end);
         return 0;
     }
+
+    for(int i = 0; i<numHospitals;i++){
+//        bfsAroundHospital();
+    }
+
+
+
     ///////////////////////////////dfs from beginning
     if (!dfsInRange(graph, beginning, end, numDaysSurvived)) {
         cout << -1;
