@@ -20,12 +20,9 @@ class Vertex {
 public:
     int planetID;
     PlanetType type;
-    int prev_vertex{};
-    int following_vertex = -1;
-    bool reachableEndWhenInfected = false;
-    int distanceFromEnd{};
-    int distanceFromStart{};
-    State dfsState = UNVISITED;
+    vector<int> following_vertex;
+    int distanceSomewhere = 0;
+    State state = UNVISITED;
     vector<int> neighbours;
 
     Vertex(int planetID){
@@ -43,22 +40,9 @@ public:
         return this->neighbours.size();
     }
 
-    void setDFSState(State state) {
-        this->dfsState = state;
-    }
-
-    void pushToQueue(int following, int distance) {
-        this->following_vertex = following;
-        this->distanceFromEnd = distance;
-    }
-
-    void pushToStack(int previous, int distance) {
-        this->prev_vertex = previous;
-        this->distanceFromStart = distance;
-    }
 
     void print() {
-        cout << "id: " << planetID << " type: " << type << " stateDFS, BFS: " << this->dfsState
+        cout << "id: " << planetID << " type: " << type
              << "neighbours: ";
         for (auto n: neighbours) {
             cout << n;
@@ -67,95 +51,72 @@ public:
     }
 };
 
-void findWayFromReachable(const vector<shared_ptr<Vertex>> & graph, int neighbour){
-    int prev = neighbour;
-    int next = graph[neighbour]->following_vertex;
+void findWayFromReachable(const vector<shared_ptr<Vertex>> & graph, int beginning){
+    cout<<beginning;
+    int prev = beginning;
+    int prePrev;
+    int next = graph[beginning]->following_vertex.back();
+    graph[beginning]->following_vertex.pop_back();
     while (graph[next]->type != END) {
-        graph[next]->prev_vertex = prev;
+        cout<<" " << next;
+        prePrev = prev;
         prev = next;
-        next = graph[next]->following_vertex;
+        next = graph[prev]->following_vertex.back();
+        graph[prev]->following_vertex.pop_back();
+        while(prePrev == next && graph[prev]->type != HOSPITAL){
+            next = graph[prev]->following_vertex.back();
+            graph[prev]->following_vertex.pop_back();
+        }
     }
-    graph[next]->prev_vertex = prev;
+    cout << " " << next;
 }
 
-bool bfsInRange(const vector<shared_ptr<Vertex>> &graph, int end, int range, int beginning) {
+bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int beginning){
     queue<int> q;
     q.push(end);
-    graph[end]->distanceFromEnd = 0;
+    graph[end]->distanceSomewhere = 0;
+    graph[end]->state = OPEN;
     while (!q.empty()) {
         int curr = q.front();
         q.pop();
-        graph[curr]->reachableEndWhenInfected = true;
         if (graph[curr]->type == BEGINNING) {
             findWayFromReachable(graph, curr);
             return true;
         }
-        if (graph[curr]->distanceFromEnd >= range) {
-            return false;
+        if(graph[curr]->type == HOSPITAL){
+            graph[curr]->distanceSomewhere =0;
         }
         for (int i = 0; i < graph[curr]->numNeighbours(); i++) {
             int neighbour = graph[curr]->neighbours[i];
-
-            if (!graph[neighbour]->reachableEndWhenInfected) {
+            if(graph[neighbour]->type == INFECTED && graph[curr]->distanceSomewhere+1 >range){
+                continue;
+            }
+            if (graph[neighbour]->state == UNVISITED || graph[neighbour]->distanceSomewhere > graph[curr]->distanceSomewhere + 1) {
                 q.push(neighbour);
-                graph[neighbour]->pushToQueue(curr, graph[curr]->distanceFromEnd + 1);
+                graph[neighbour]->following_vertex.push_back(curr);
+                graph[neighbour]->distanceSomewhere = graph[curr]->distanceSomewhere + 1;
+                graph[neighbour]->state = OPEN;
             }
         }
+        graph[curr]->state = CLOSED;
     }
     return false;
+
 }
 
-
-bool dfsInRange(const vector<shared_ptr<Vertex>> &graph, int beginning, int end, int numDaysSurvived) {
-    stack<int> s;
-    s.push(beginning);
-    graph[beginning]->distanceFromStart = 0;
-    while (!s.empty()) {
-        int curr = s.top();
-        s.pop();
-
-        if (graph[curr]->type == END) {
-            return true;
-        }
-        if (graph[curr]->reachableEndWhenInfected &&
-            graph[curr]->distanceFromEnd + graph[curr]->distanceFromStart + 1 <= int(graph.size())) { //todo for bonus should be max(3dn, n)
-            findWayFromReachable(graph, curr);
-            return true;
-        }
-        //TODO: for bonus should be shorter than max(3d*n,n)
-        if (graph[curr]->distanceFromStart + numDaysSurvived >= int(graph.size())) {
-            continue;
-        }
-        graph[curr]->setDFSState(OPEN);
-        for (int i = 0; i < graph[curr]->numNeighbours(); i++) {
-            int neighbour = graph[curr]->neighbours[i];
-            if (graph[neighbour]->dfsState == UNVISITED) {
-                if (graph[neighbour]->type == INFECTED && !graph[neighbour]->reachableEndWhenInfected) {
-                    continue;
-                }
-                s.push(neighbour);
-                graph[neighbour]->pushToStack(curr, graph[curr]->distanceFromStart + 1);
-
-            }
-        }
-        graph[curr]->setDFSState(CLOSED);
-    }
-    return false;
-}
-
-void printResults(const vector<shared_ptr<Vertex>> & graph, int beginning, int end){
-    int next = end;
-    vector<int> results;
-    while (next != beginning) {
-        results.push_back(graph[next]->planetID);
-        next = graph[next]->prev_vertex;
-    }
-    results.push_back(graph[next]->planetID);
-    for (size_t i = results.size() - 1; i > 0; i--) {
-        cout << results[i] << " ";
-    }
-    cout << results[0];
-}
+//void printResults(const vector<shared_ptr<Vertex>> & graph, int beginning, int end){
+//    int next = end;
+//    vector<int> results;
+//    while (next != beginning) {
+//        results.push_back(graph[next]->planetID);
+//        next = graph[next]->prev_vertex;
+//    }
+//    results.push_back(graph[next]->planetID);
+//    for (size_t i = results.size() - 1; i > 0; i--) {
+//        cout << results[i] << " ";
+//    }
+//    cout << results[0];
+//}
 
 void readTypes(int numPlanets, const vector<shared_ptr<Vertex>> &graph, PlanetType type) {
     for(int i = 0; i<numPlanets;i++){
@@ -203,23 +164,11 @@ int main() {
 
 
     ////////////////////////////////bfs around end
-    if (bfsInRange(graph, end, numDaysSurvived, beginning)) {
-        printResults(graph, beginning, end);
+    if (bfsFromEnd(graph, end, numDaysSurvived, beginning)) {
         return 0;
     }
+    cout<<-1;
 
-    for(int i = 0; i<numHospitals;i++){
-//        bfsAroundHospital();
-    }
-
-
-
-    ///////////////////////////////dfs from beginning
-    if (!dfsInRange(graph, beginning, end, numDaysSurvived)) {
-        cout << -1;
-    } else {
-        printResults(graph, beginning, end);
-    }
     return 0;
 }
 
