@@ -16,12 +16,24 @@ enum State {
     UNVISITED, OPEN, CLOSED
 };
 
+class Visit{
+public:
+   int planetID;
+   int distanceSomewhere = 0;
+   shared_ptr<Visit> prev_visit;
+   Visit(int planetID, int distanceSomewhere,  shared_ptr<Visit> prev_visit){
+       this->planetID = planetID;
+       this->distanceSomewhere = distanceSomewhere;
+       this->prev_visit = prev_visit;
+   }
+};
+
+
 class Vertex {
 public:
     int planetID;
     PlanetType type;
-    vector<int> following_vertex;
-    int distanceSomewhere = 0;
+    vector<shared_ptr<Visit>> visits;
     State state = UNVISITED;
     vector<int> neighbours;
 
@@ -51,54 +63,49 @@ public:
     }
 };
 
-void findWayFromReachable(const vector<shared_ptr<Vertex>> & graph, int beginning){
-    cout<<beginning;
-    int prev = beginning;
-    int prePrev;
-    int next = graph[beginning]->following_vertex.back();
-    graph[beginning]->following_vertex.pop_back();
-    while (graph[next]->type != END) {
-        cout<<" " << next;
-        prePrev = prev;
+void findWayFromReachable(const shared_ptr<Visit> & visit, int end){
+
+    shared_ptr<Visit> prev = visit;
+    shared_ptr<Visit> next = visit->prev_visit;
+    cout<<prev->planetID;
+    while (next->planetID != end) {
+        cout<<" "<<next->planetID;
         prev = next;
-        next = graph[prev]->following_vertex.back();
-        graph[prev]->following_vertex.pop_back();
-        while(prePrev == next && graph[prev]->type != HOSPITAL){
-            next = graph[prev]->following_vertex.back();
-            graph[prev]->following_vertex.pop_back();
-        }
+        next = next->prev_visit;
     }
-    cout << " " << next;
+    cout << " " << next->planetID;
 }
 
 bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int beginning){
-    queue<int> q;
-    q.push(end);
-    graph[end]->distanceSomewhere = 0;
+    queue<shared_ptr<Visit>> q;
+
+    q.push(make_shared<Visit>(Visit(end, 0, nullptr)));
     graph[end]->state = OPEN;
     while (!q.empty()) {
-        int curr = q.front();
+        shared_ptr<Visit> currentVisit = q.front();
         q.pop();
-        if (graph[curr]->type == BEGINNING) {
-            findWayFromReachable(graph, curr);
+        int currID = currentVisit->planetID;
+        if (graph[currID]->type == BEGINNING) {
+            //todo
+            findWayFromReachable(currentVisit, end);
             return true;
         }
-        if(graph[curr]->type == HOSPITAL){
-            graph[curr]->distanceSomewhere =0;
+        if(graph[currID]->type == HOSPITAL){
+            currentVisit->distanceSomewhere = 0;
         }
-        for (int i = 0; i < graph[curr]->numNeighbours(); i++) {
-            int neighbour = graph[curr]->neighbours[i];
-            if(graph[neighbour]->type == INFECTED && graph[curr]->distanceSomewhere+1 >range){
+        for (int i = 0; i < graph[currID]->numNeighbours(); i++) {
+            int neighbour = graph[currID]->neighbours[i];
+            if(graph[neighbour]->type == INFECTED && currentVisit->distanceSomewhere+1 >range){
                 continue;
             }
-            if (graph[neighbour]->state == UNVISITED || graph[neighbour]->distanceSomewhere > graph[curr]->distanceSomewhere + 1) {
-                q.push(neighbour);
-                graph[neighbour]->following_vertex.push_back(curr);
-                graph[neighbour]->distanceSomewhere = graph[curr]->distanceSomewhere + 1;
+            if (graph[neighbour]->state == UNVISITED || (graph[neighbour]->type!= END && graph[neighbour]->visits.back()->distanceSomewhere > currentVisit->distanceSomewhere + 1)) {
+                shared_ptr<Visit> nextVisit = make_shared<Visit>(Visit(neighbour,currentVisit->distanceSomewhere +1, currentVisit ));
+                q.push(nextVisit);
+                graph[neighbour]->visits.push_back(nextVisit);
                 graph[neighbour]->state = OPEN;
             }
         }
-        graph[curr]->state = CLOSED;
+        graph[currID]->state = CLOSED;
     }
     return false;
 
