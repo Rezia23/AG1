@@ -1,10 +1,8 @@
 #include <iostream>
 #include<memory>
 #include<vector>
-#include <algorithm>
 #include <queue>
-#include <stack>
-#include <set>
+
 using namespace std;
 
 class Vertex;
@@ -16,16 +14,17 @@ enum State {
     UNVISITED, OPEN, CLOSED
 };
 
-class Visit{
+class Visit {
 public:
-   int planetID;
-   int distanceSomewhere = 0;
-   shared_ptr<Visit> prev_visit;
-   Visit(int planetID, int distanceSomewhere,  shared_ptr<Visit> prev_visit){
-       this->planetID = planetID;
-       this->distanceSomewhere = distanceSomewhere;
-       this->prev_visit = prev_visit;
-   }
+    int planetID;
+    int distanceSomewhere = 0;
+    shared_ptr<Visit> prev_visit;
+
+    Visit(int planetID, int distanceSomewhere, shared_ptr<Visit> prev_visit) {
+        this->planetID = planetID;
+        this->distanceSomewhere = distanceSomewhere;
+        this->prev_visit = std::move(prev_visit);
+    }
 };
 
 
@@ -37,7 +36,7 @@ public:
     State state = UNVISITED;
     vector<int> neighbours;
 
-    Vertex(int planetID){
+    Vertex(int planetID) {
         this->planetID = planetID;
         this->type = NORMAL;
     }
@@ -63,20 +62,20 @@ public:
     }
 };
 
-void findWayFromReachable(const shared_ptr<Visit> & visit, int end){
+void printPath(const shared_ptr<Visit> &visit, int end) {
 
     shared_ptr<Visit> prev = visit;
     shared_ptr<Visit> next = visit->prev_visit;
-    cout<<prev->planetID;
+    cout << prev->planetID;
     while (next->planetID != end) {
-        cout<<" "<<next->planetID;
+        cout << " " << next->planetID;
         prev = next;
         next = next->prev_visit;
     }
     cout << " " << next->planetID;
 }
 
-bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int beginning){
+bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range) {
     queue<shared_ptr<Visit>> q;
 
     q.push(make_shared<Visit>(Visit(end, 0, nullptr)));
@@ -85,24 +84,25 @@ bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int
         shared_ptr<Visit> currentVisit = q.front();
         q.pop();
         int currID = currentVisit->planetID;
-        if(graph[currID]->type == INFECTED && currentVisit->distanceSomewhere > range){
+        if (graph[currID]->type == INFECTED && currentVisit->distanceSomewhere > range) {
             continue;
         }
 
         if (graph[currID]->type == BEGINNING) {
-            //todo
-            findWayFromReachable(currentVisit, end);
+            printPath(currentVisit, end);
             return true;
         }
-        if(graph[currID]->type == HOSPITAL){
+        if (graph[currID]->type == HOSPITAL) {
             currentVisit->distanceSomewhere = 0;
         }
         for (int i = 0; i < graph[currID]->numNeighbours(); i++) {
             int neighbour = graph[currID]->neighbours[i];
-            if(graph[neighbour]->state != UNVISITED && neighbour != end && graph[neighbour]->visits.back()->distanceSomewhere <= currentVisit->distanceSomewhere+1){
+            if (graph[neighbour]->state != UNVISITED && neighbour != end &&
+                graph[neighbour]->visits.back()->distanceSomewhere <= currentVisit->distanceSomewhere + 1) {
                 continue;
             }
-            shared_ptr<Visit> nextVisit = make_shared<Visit>(Visit(neighbour,currentVisit->distanceSomewhere +1, currentVisit ));
+            shared_ptr<Visit> nextVisit = make_shared<Visit>(
+                    Visit(neighbour, currentVisit->distanceSomewhere + 1, currentVisit));
             q.push(nextVisit);
             graph[neighbour]->visits.push_back(nextVisit);
             graph[neighbour]->state = OPEN;
@@ -113,31 +113,17 @@ bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int
 
 }
 
-//void printResults(const vector<shared_ptr<Vertex>> & graph, int beginning, int end){
-//    int next = end;
-//    vector<int> results;
-//    while (next != beginning) {
-//        results.push_back(graph[next]->planetID);
-//        next = graph[next]->prev_vertex;
-//    }
-//    results.push_back(graph[next]->planetID);
-//    for (size_t i = results.size() - 1; i > 0; i--) {
-//        cout << results[i] << " ";
-//    }
-//    cout << results[0];
-//}
-
 void readTypes(int numPlanets, const vector<shared_ptr<Vertex>> &graph, PlanetType type) {
-    for(int i = 0; i<numPlanets;i++){
+    for (int i = 0; i < numPlanets; i++) {
         int tmp;
-        cin>>tmp;
+        cin >> tmp;
         graph[tmp]->type = type;
     }
 }
 
 
-void readEdges(int numEdges, const vector<shared_ptr<Vertex>> & graph) {
-    for(int i = 0; i<numEdges;i++){
+void readEdges(int numEdges, const vector<shared_ptr<Vertex>> &graph) {
+    for (int i = 0; i < numEdges; i++) {
         int tmp1, tmp2;
         cin >> tmp1 >> tmp2;
         graph[tmp1]->neighbours.push_back(tmp2);
@@ -172,12 +158,9 @@ int main() {
     readEdges(numEdges, graph);
 
 
-    ////////////////////////////////bfs around end
-    if (bfsFromEnd(graph, end, numDaysSurvived, beginning)) {
-        return 0;
+    if (!bfsFromEnd(graph, end, numDaysSurvived)) {
+        cout << -1;
     }
-    cout<<-1;
-
     return 0;
 }
 
