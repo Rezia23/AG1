@@ -85,6 +85,10 @@ bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int
         shared_ptr<Visit> currentVisit = q.front();
         q.pop();
         int currID = currentVisit->planetID;
+        if(graph[currID]->type == INFECTED && currentVisit->distanceSomewhere > range){
+            continue;
+        }
+
         if (graph[currID]->type == BEGINNING) {
             //todo
             findWayFromReachable(currentVisit, end);
@@ -95,15 +99,13 @@ bool bfsFromEnd(const vector<shared_ptr<Vertex>> &graph, int end, int range, int
         }
         for (int i = 0; i < graph[currID]->numNeighbours(); i++) {
             int neighbour = graph[currID]->neighbours[i];
-            if(graph[neighbour]->type == INFECTED && currentVisit->distanceSomewhere+1 >range){
+            if(graph[neighbour]->state != UNVISITED && neighbour != end && graph[neighbour]->visits.back()->distanceSomewhere <= currentVisit->distanceSomewhere+1){
                 continue;
             }
-            if (graph[neighbour]->state == UNVISITED || (graph[neighbour]->type!= END && graph[neighbour]->visits.back()->distanceSomewhere > currentVisit->distanceSomewhere + 1)) {
-                shared_ptr<Visit> nextVisit = make_shared<Visit>(Visit(neighbour,currentVisit->distanceSomewhere +1, currentVisit ));
-                q.push(nextVisit);
-                graph[neighbour]->visits.push_back(nextVisit);
-                graph[neighbour]->state = OPEN;
-            }
+            shared_ptr<Visit> nextVisit = make_shared<Visit>(Visit(neighbour,currentVisit->distanceSomewhere +1, currentVisit ));
+            q.push(nextVisit);
+            graph[neighbour]->visits.push_back(nextVisit);
+            graph[neighbour]->state = OPEN;
         }
         graph[currID]->state = CLOSED;
     }
@@ -165,7 +167,7 @@ int main() {
     }
     cin >> numHospitals;
     if (numHospitals > 0) {
-        readTypes(numPlanetsInfected, graph, HOSPITAL);
+        readTypes(numHospitals, graph, HOSPITAL);
     }
     readEdges(numEdges, graph);
 
