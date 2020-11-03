@@ -74,12 +74,16 @@ void mergeFiles(int id1, int id2, int idOutput, int bufSize){
 
     flib_remove(id1);
     flib_remove(id2);
+
+    delete [] buffer1;
+    delete [] buffer2;
+    delete [] bufferOutput;
 }
 
 
 void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     flib_open(in_file, READ);
-    int numInts = bytes/4 - 9;
+    int numInts = bytes/4/2 - 9;
     int * buffer = new int [numInts];
     int numRead;
     int fileCnt = 0;
@@ -94,7 +98,6 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
         fileCnt++;
     }
     while(numRead == numInts);
-
 
 //    //DEBUG
 //    int * arr = new int [2000];
@@ -115,15 +118,16 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     int firstIndex = 2;
     while(fileCnt >2){
         if(fileCnt % 2 == 1){
-            mergeFiles(fileCnt/2+1, firstIndex, firstIndex + fileCnt + 1, numInts);
+            mergeFiles(firstIndex, firstIndex+1, firstIndex + fileCnt, numInts);
+            firstIndex +=2;
+            fileCnt --;
         }
-        firstIndex ++;
-        fileCnt --;
         for(int i = firstIndex ; i<firstIndex + fileCnt/2;i++){
-            mergeFiles(i, fileCnt-i, firstIndex + fileCnt + 1, numInts);
+            mergeFiles(i, (firstIndex + fileCnt)-(i-firstIndex)-1, i + fileCnt + 1, numInts);
         }
-        fileCnt /=2;
         firstIndex+=fileCnt + 1;
+        fileCnt /=2;
+
     }
     if(fileCnt == 2){
         //todo test merging multiple files
@@ -191,10 +195,10 @@ int main(int argc, char **argv){
     flib_init_files(MAX_FILES);
     int INPUT = 0;
     int RESULT = 1;
-    int SIZE = 140;
+    int SIZE = 3000000;
 
     create_random(INPUT, SIZE);
-    tarant_allegra(INPUT, RESULT, 1000);
+    tarant_allegra(INPUT, RESULT, 20000000);
     check_result(RESULT, SIZE);
 
     flib_free_files();
