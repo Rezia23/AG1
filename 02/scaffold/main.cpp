@@ -1,20 +1,24 @@
 #ifndef __PROGTEST__
+
+#include <ctime>
 #include "flib.h"
 #endif //__PROGTEST__
 
 
 int cmpfunc (const void * a, const void * b) {
-    return ( *(int*)a - *(int*)b );
+    return ( *(int32_t*)a > *(int32_t*)b ) - ( *(int32_t*)a < *(int32_t*)b ) ;
 }
 
 void mergeFiles(int id1, int id2, int idOutput, int bufSize){
-    int * buffer1 = new int [bufSize/4];
-    int * buffer2 = new int [bufSize/4];
+
+
+    int32_t * buffer1 = new int32_t [bufSize/4];
+    int32_t * buffer2 = new int32_t [bufSize/4];
+    int32_t * bufferOutput = new int32_t [bufSize/2];
+
     flib_open(id1, READ);
     flib_open(id2, READ);
     flib_open(idOutput, WRITE);
-
-    int * bufferOutput = new int [bufSize/2];
 
     int count1 = 0;
     int count2 = 0;
@@ -83,38 +87,27 @@ void mergeFiles(int id1, int id2, int idOutput, int bufSize){
 
 void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     flib_open(in_file, READ);
-    int numInts = bytes/4/2 - 9;
-    int * buffer = new int [numInts];
-    int numRead;
-    int fileCnt = 0;
-    do{
-        int fileID = fileCnt + 2;
-        numRead = flib_read(READ,buffer, numInts);
+    int numInts = (bytes-250)/4/2;
 
-        qsort(buffer, numRead, sizeof(int), cmpfunc);
-        flib_open(fileID, WRITE);
-        flib_write(fileID, buffer,numRead);
-        flib_close(fileID);
-        fileCnt++;
+    int32_t * buffer = new int32_t [numInts];
+    int numRead;
+    uint16_t fileCnt = 0;
+    do{
+        uint16_t fileID = fileCnt + 2;
+        numRead = flib_read(READ,buffer, numInts);
+        if(numRead>0){
+            qsort(buffer, numRead, sizeof(buffer[0]), cmpfunc);
+            flib_open(fileID, WRITE);
+            flib_write(fileID, buffer,numRead);
+            flib_close(fileID);
+            fileCnt++;
+        }
     }
     while(numRead == numInts);
 
-//    //DEBUG
-//    int * arr = new int [2000];
-//    flib_open(2, READ);
-//    int numNums = flib_read(2, arr, 2000);
-//    int index = 0;
-//    while(index<numNums){
-//        printf("next: %d \n", arr[index]);
-//        index++;
-//    }
-//    flib_close(2);
-//
-//
-//    //end of debug
-
     flib_close(in_file);
     delete [] buffer;
+
     int firstIndex = 2;
     while(fileCnt >2){
         if(fileCnt % 2 == 1){
@@ -150,7 +143,7 @@ uint64_t total_sum_mod;
 void create_random(int output, int size){
     total_sum_mod=0;
     flib_open(output, WRITE);
-    /* srand(time(NULL)); */
+//     srand(time(0));
 #define STEP 100ll
     int val[STEP];
     for(int i=0; i<size; i+=STEP){
@@ -173,7 +166,7 @@ void check_result ( int out_file, int SIZE ){
         total += loaded;
         for(int i=0; i<loaded; ++i){
             if(last > q[i]){
-                printf("the result file contains numbers %d and %d on position %d in the wrong order!\n", last, q[i], i-1);
+                printf("the result file contains numbers %d and %d on position %d in the wrong order!nope\n", last, q[i], i-1);
                 exit(1);
             }
             last=q[i];
@@ -181,10 +174,10 @@ void check_result ( int out_file, int SIZE ){
         }
     }
     if(total != SIZE){
-        printf("the output contains %d but the input had %d numbers\n", total, SIZE); exit(1);
+        printf("the output contains %d but the input had %d numbers\nnope", total, SIZE); exit(1);
     }
     if(current_sum_mod != total_sum_mod){
-        printf("the output numbers are not the same as the input numbers\n");
+        printf("the output numbers are not the same as the input numbersnoppe\n");
         exit(1);
     }
     flib_close(out_file);
@@ -195,11 +188,13 @@ int main(int argc, char **argv){
     flib_init_files(MAX_FILES);
     int INPUT = 0;
     int RESULT = 1;
-    int SIZE = 3000000;
-
-    create_random(INPUT, SIZE);
-    tarant_allegra(INPUT, RESULT, 20000000);
-    check_result(RESULT, SIZE);
+    int SIZE = 1000;
+    srand(time(0));
+    for(int i = 0; i<1000  ;i++){
+        create_random(INPUT, SIZE);
+        tarant_allegra(INPUT, RESULT, 2000);
+        check_result(RESULT, SIZE);
+    }
 
     flib_free_files();
     return 0;
