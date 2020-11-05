@@ -177,7 +177,7 @@ void check_result ( int out_file, int SIZE ){
         printf("the output contains %d but the input had %d numbers\nnope", total, SIZE); exit(1);
     }
     if(current_sum_mod != total_sum_mod){
-        printf("the output numbers are not the same as the input numbersnoppe\n");
+        printf("the output numbers are not the same as the input numbers nope\n");
         exit(1);
     }
     flib_close(out_file);
@@ -190,10 +190,13 @@ int main(int argc, char **argv){
     int RESULT = 1;
     int SIZE = 1000;
     srand(time(0));
-    for(int i = 0; i<1000  ;i++){
-        create_random(INPUT, SIZE);
-        tarant_allegra(INPUT, RESULT, 2000);
-        check_result(RESULT, SIZE);
+
+    for(SIZE = 13; SIZE<1002;SIZE+=17){
+        for(int NB = 1000; NB <=2037;NB+=37){
+            create_random(INPUT, SIZE);
+            tarant_allegra(INPUT, RESULT, NB);
+            check_result(RESULT, SIZE);
+        }
     }
 
     flib_free_files();
