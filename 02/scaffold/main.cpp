@@ -94,7 +94,7 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     uint16_t fileCnt = 0;
     do{
         uint16_t fileID = fileCnt + 2;
-        numRead = flib_read(READ,buffer, numInts);
+        numRead = flib_read(in_file,buffer, numInts);
         if(numRead>0){
             qsort(buffer, numRead, sizeof(buffer[0]), cmpfunc);
             flib_open(fileID, WRITE);
@@ -191,8 +191,8 @@ int main(int argc, char **argv){
     int SIZE = 1000;
     srand(time(0));
 
-    for(SIZE = 13; SIZE<1002;SIZE+=17){
-        for(int NB = 1000; NB <=2037;NB+=37){
+    for(SIZE = 550; SIZE<1002;SIZE+=17){
+        for(int NB = 1010; NB <=2037;NB+=37){
             create_random(INPUT, SIZE);
             tarant_allegra(INPUT, RESULT, NB);
             check_result(RESULT, SIZE);
