@@ -153,7 +153,7 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
 //    }
 
 
-    int absolute_min = heap[1];
+    int prev_min = heap[1];
     int index_in = 0;
     int index_out = 0;
     bool readEverything = false;
@@ -185,9 +185,12 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
                 index_in = 0;
             }
         }
+        if(numRead==0){
+            readEverything = true;
+        }
         //extract min - if smaller than absolute min, return false
         int min = extractMin(heap, heapSize);
-        if(min<absolute_min){
+        if(min<prev_min){
             //delete everything and close files
             delete [] buffer_in;
             delete [] heap;
@@ -198,6 +201,7 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
         }else{
             buffer_out[index_out] = min;
             index_out++;
+            prev_min = min;
             //add element from in
             //todo possibly leave out correcting right after extracting min
             if(!readEverything){
@@ -220,6 +224,7 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     int numInts = (bytes-250)/4/2;
     int isSorted = try_bonus(in_file, out_file, numInts/3);
     if (!isSorted){
+        printf("pozor pozor");
         //extract this somehow
         flib_open(in_file, READ);
         int32_t * buffer = new int32_t [numInts];
@@ -270,20 +275,20 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
 
 
 #ifndef __PROGTEST__
-int SORTED = 1;
+int SORTED = 0;
 uint64_t total_sum_mod;
 void create_random(int output, int size){
     total_sum_mod=0;
     flib_open(output, WRITE);
 //     srand(time(0));
-#define STEP 100ll
+#define STEP 10ll
     int val[STEP];
     for(int i=0; i<size; i+=STEP){
         for(int j=0; j<STEP && i+j < size; ++j){
             val[j]=-1000 + (rand()%(2*1000+1));
             if(SORTED){
                 //my test
-                val[j] = i*size + j + rand()%4;
+                val[j] = i + j + rand()%2;
             }
             total_sum_mod += val[j];
         }
@@ -327,12 +332,10 @@ int main(int argc, char **argv){
     int SIZE = 1000;
     srand(time(0));
 
-    create_random(INPUT, SIZE);
-    tarant_allegra(INPUT, RESULT, (1000*2*4)+400);
-    check_result(RESULT, SIZE);
 
-    for(SIZE = 550; SIZE<1002;SIZE+=200){
-        for(int NB = 1010; NB <=2037;NB+=200){
+
+    for(SIZE = 10; SIZE<=1000;SIZE+=1){
+        for(int NB = 2000; NB<4000;NB+=147){
             SORTED = rand()%2;
             create_random(INPUT, SIZE);
             tarant_allegra(INPUT, RESULT, NB);
