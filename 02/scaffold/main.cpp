@@ -4,11 +4,12 @@
 #include "flib.h"
 #endif //__PROGTEST__
 
+/* Used heap implementation from https://www.geeksforgeeks.org/binary-heap/ */
 
 int cmpfunc (const void * a, const void * b) {
     return ( *(int32_t*)a > *(int32_t*)b ) - ( *(int32_t*)a < *(int32_t*)b ) ;
 }
-
+int parent(int i) { return (i-1)/2; }
 void mergeFiles(int id1, int id2, int idOutput, int bufSize){
 
 
@@ -84,134 +85,133 @@ void mergeFiles(int id1, int id2, int idOutput, int bufSize){
     delete [] bufferOutput;
 }
 
-void insertElement(int32_t element, int32_t * heap, int heapSize){
-    heapSize++;
+bool insertElement(int32_t element, int32_t * heap, int heapSize, int maxSize){
+    if(heapSize == maxSize){
+        return false;
+    }
     heap[heapSize] = element;
-    //bubble up
-    int pos = heapSize;
-    while (heap[pos/2] > element) {
-        heap[pos] = heap[pos/2];
-        heap[pos/2] = element;
-        pos /= 2;
+    int i = heapSize;
+    while (i != 0 && heap[parent(i)] > heap[i])
+    {
+        int tmp = heap[i];
+        heap[i] = heap[parent(i)];
+        heap[parent(i)] = tmp;
+        i = parent(i);
     }
+    return true;
+
 }
 
 
-void createHeap(int32_t * heap, int32_t * buffer_in, int maxSize){
-    int heapSize = 0;
-    heap[0] = -INT32_MAX;
+bool createHeap(int32_t * heap, int32_t * buffer_in, int maxSize){
     for(int i = 0; i<maxSize;i++){
-        insertElement(buffer_in[i],heap, heapSize);
-        heapSize++;
+        bool inserted = insertElement(buffer_in[i], heap, i, maxSize);
+        if(!inserted){return false;}
     }
-
+    return true;
 }
 
-int smallerChild(int i, int32_t * heap, int heapSize){
-    int child = 2*i;
-    if(child!=heapSize && heap[child+1]<heap[child]){
-        child++;
+void bubbleDown(int i, int32_t * heap, int heapSize){
+    int l = 2*i + 1;
+    int r = 2*i + 2;
+    int smallest = i;
+    if (l < heapSize && heap[l] < heap[i])
+        smallest = l;
+    if (r < heapSize && heap[r] < heap[smallest])
+        smallest = r;
+    if (smallest != i) {
+        int tmp = heap[i];
+        heap[i] = heap[smallest];
+        heap[smallest] = tmp;
+        bubbleDown(smallest, heap, heapSize);
     }
-    return child;
 }
+
 
 int extractMin(int32_t * heap, int heapSize){
-    int min = heap[1];
-    int child;
-    heap[1] = heap[heapSize];
-    for(int i = 1; i*2<heapSize;i = child){
-        child = smallerChild(i, heap, heapSize);
-        if(heap[i]>heap[child]){
-            int tmp = heap[i];
-            heap[i] = heap[child];
-            heap[child] = tmp;
-        }else{
-            //bubbled down sucessfully
-            return min;
-        }
+    if (heapSize <= 0)
+        return 2147483647;
+    if (heapSize == 1)
+    {
+        return heap[0];
     }
+    int min = heap[0];
+    heap[0] = heap[heapSize-1];
+    bubbleDown(0, heap, heapSize);
+
     return min;
 }
 
+bool extractRestOfTheHeap(int32_t * heap, int heapSize, int32_t * buffer_out, int index_out, int32_t out_file, int prev_min, int lengthOfOutBuf){
+    for(int i = 0; i<heapSize;i++){
+        if(index_out == lengthOfOutBuf){
+            flib_write(out_file, buffer_out, lengthOfOutBuf);
+            index_out = 0;
+        }
+        int min = extractMin(heap, heapSize-i);
+        if(min<prev_min){return false;}
+        prev_min = min;
+        buffer_out[index_out] = min;
+        index_out++;
+    }
+    if(index_out!=0){
+        flib_write(out_file, buffer_out, index_out);
+    }
+    return true;
+}
 
 bool try_bonus(int32_t in_file, int32_t out_file, int numInts){
-    printf("tried bonus");
     flib_open(in_file, READ);
     flib_open(out_file, WRITE);
     
     int32_t * buffer_in = new int32_t [numInts/2];
     int32_t * buffer_out = new int32_t [numInts/2];
-    int32_t heap[102];
-    int sizeOfHeap = 101;
+
+    int maxSizeOfHeap = 101;
+    int32_t heap[101];
+
+
     int readNums = flib_read(in_file, buffer_in, numInts/2);
-    createHeap(heap, buffer_in, sizeOfHeap < readNums ? sizeOfHeap : readNums);
-    sizeOfHeap = sizeOfHeap < readNums ? sizeOfHeap : readNums;
-    //todo off by one in heap?
 
-//    printf("debug\n");
-//    for(int i = 0; i<thirdOfInts;i++){
-//        printf("%d ", heap[i]);
-//    }
+    if(!createHeap(heap, buffer_in, maxSizeOfHeap < readNums ? maxSizeOfHeap : readNums)){
+        return false;
+    }
+    int sizeOfHeap = maxSizeOfHeap < readNums ? maxSizeOfHeap : readNums;
 
-
-    int prev_min = heap[1];
-    int index_in = sizeOfHeap < readNums ? sizeOfHeap : readNums;
+    int index_in = sizeOfHeap;
     int index_out = 0;
-    bool readEverything = false;
-    do{
-        //out is full - write
-        if(index_out==numInts/2){
+    int prev_min = heap[0];
+    while(1){
+        if(index_out == numInts/2){
             flib_write(out_file, buffer_out, numInts/2);
             index_out = 0;
         }
-        //in is empty - read
         if(index_in == readNums){
-            if(readNums!=numInts/2){
-                if(sizeOfHeap!=0){
-                    readEverything = true;
-                }else{
-                    if(index_out!=0){
-                        flib_write(out_file, buffer_out, index_out);
-                    }
-                    delete [] buffer_out;
-                    delete [] buffer_in;
-                    flib_close(in_file);
-                    flib_close(out_file);
-                    return true;
-                }
-            } else{
-                readNums = flib_read(in_file, buffer_in, numInts/2);
-                index_in = 0;
+            readNums = flib_read(in_file, buffer_in, numInts/2);
+            index_in = 0;
+            if(readNums == 0){
+                bool res = extractRestOfTheHeap(heap, sizeOfHeap, buffer_out, index_out, out_file, prev_min, numInts/2);
+                delete [] buffer_in;
+                delete [] buffer_out;
+                flib_close(in_file);
+                flib_close(out_file);
+                return res;
             }
         }
-        if(readNums==0){
-            readEverything = true;
-        }
-        //extract min - if smaller than absolute min, return false
         int min = extractMin(heap, sizeOfHeap);
         if(min<prev_min){
-            //delete everything and close files
             delete [] buffer_in;
             delete [] buffer_out;
             flib_close(in_file);
             flib_close(out_file);
             return false;
-        }else{
-            buffer_out[index_out] = min;
-            index_out++;
-            prev_min = min;
-            //add element from in
-            //todo possibly leave out correcting right after extracting min
-            if(!readEverything){
-                insertElement(buffer_in[index_in], heap, sizeOfHeap-1);
-                index_in++;
-            } else{
-                sizeOfHeap--;
-            }
         }
-
-
-    }while(1);
+        prev_min = min;
+        buffer_out[index_out] = min;
+        index_out++;
+        insertElement(buffer_in[index_in], heap, sizeOfHeap-1, maxSizeOfHeap);
+        index_in++;
+    }
 
 
 }
@@ -219,11 +219,13 @@ bool try_bonus(int32_t in_file, int32_t out_file, int numInts){
 
 void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     
-    int numInts = (bytes-36)/4;
-    int isSorted = try_bonus(in_file, out_file, numInts);
+    int numInts = (bytes-250)/4/2;
+    int isSorted = false;
+    if(numInts>2){
+        isSorted = try_bonus(in_file, out_file, numInts);
+    }
     if (!isSorted){
         //extract this somehow
-        printf("no bonus");
         flib_open(in_file, READ);
         int32_t * buffer = new int32_t [numInts];
         int numRead;
@@ -273,21 +275,17 @@ void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
 
 
 #ifndef __PROGTEST__
-int SORTED = 0;
+
 uint64_t total_sum_mod;
 void create_random(int output, int size){
     total_sum_mod=0;
     flib_open(output, WRITE);
-//     srand(time(0));
+    /* srand(time(NULL)); */
 #define STEP 100ll
     int val[STEP];
     for(int i=0; i<size; i+=STEP){
         for(int j=0; j<STEP && i+j < size; ++j){
             val[j]=-1000 + (rand()%(2*1000+1));
-//            if(SORTED){
-//                //my test
-//                val[j] = i + j + rand()%2;
-//            }
             total_sum_mod += val[j];
         }
         flib_write(output, val, (STEP < size-i) ? STEP : size-i);
@@ -305,7 +303,7 @@ void check_result ( int out_file, int SIZE ){
         total += loaded;
         for(int i=0; i<loaded; ++i){
             if(last > q[i]){
-                printf("the result file contains numbers %d and %d on position %d in the wrong order!nope\n", last, q[i], i-1);
+                printf("the result file contains numbers %d and %d on position %d in the wrong order!\n", last, q[i], i-1);
                 exit(1);
             }
             last=q[i];
@@ -313,10 +311,10 @@ void check_result ( int out_file, int SIZE ){
         }
     }
     if(total != SIZE){
-        printf("the output contains %d but the input had %d numbers\nnope", total, SIZE); exit(1);
+        printf("the output contains %d but the input had %d numbers\n", total, SIZE); exit(1);
     }
     if(current_sum_mod != total_sum_mod){
-        printf("the output numbers are not the same as the input numbers nope\n");
+        printf("the output numbers are not the same as the input numbers\n");
         exit(1);
     }
     flib_close(out_file);
@@ -327,27 +325,11 @@ int main(int argc, char **argv){
     flib_init_files(MAX_FILES);
     int INPUT = 0;
     int RESULT = 1;
-    int SIZE = 110;
-    srand(time(0));
+    int SIZE = 140;
 
-
-    for(int i = 0; i<100;i++){
-        int halda = rand()%5000;
-        halda = halda>200 ? halda : 200;
-        create_random(INPUT, SIZE);
-        tarant_allegra(INPUT, RESULT, halda);
-        check_result(RESULT, SIZE);
-    }
-
-
-
-//    for(SIZE = 10; SIZE<=1000;SIZE+=1){
-////            SORTED = rand()%2;
-//            create_random(INPUT, SIZE);
-//            tarant_allegra(INPUT, RESULT, 1000);
-//            check_result(RESULT, SIZE);
-//
-//    }
+    create_random(INPUT, SIZE);
+    tarant_allegra(INPUT, RESULT, 1000);
+    check_result(RESULT, SIZE);
 
     flib_free_files();
     return 0;
