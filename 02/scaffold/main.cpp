@@ -134,17 +134,18 @@ int extractMin(int32_t * heap, int heapSize){
 }
 
 
-bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
+bool try_bonus(int32_t in_file, int32_t out_file, int numInts){
+    printf("tried bonus");
     flib_open(in_file, READ);
     flib_open(out_file, WRITE);
     
-    int32_t * buffer_in = new int32_t [thirdOfInts];
-    int32_t * buffer_out = new int32_t [thirdOfInts];
-    int32_t * heap = new int32_t [thirdOfInts+1];
-
-    int heapSize = flib_read(in_file, buffer_in, thirdOfInts);
-    createHeap(heap, buffer_in, heapSize);
-
+    int32_t * buffer_in = new int32_t [numInts/2];
+    int32_t * buffer_out = new int32_t [numInts/2];
+    int32_t heap[102];
+    int sizeOfHeap = 101;
+    int readNums = flib_read(in_file, buffer_in, numInts/2);
+    createHeap(heap, buffer_in, sizeOfHeap < readNums ? sizeOfHeap : readNums);
+    sizeOfHeap = sizeOfHeap < readNums ? sizeOfHeap : readNums;
     //todo off by one in heap?
 
 //    printf("debug\n");
@@ -154,20 +155,19 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
 
 
     int prev_min = heap[1];
-    int index_in = 0;
+    int index_in = sizeOfHeap < readNums ? sizeOfHeap : readNums;
     int index_out = 0;
     bool readEverything = false;
-    int numRead = flib_read(in_file, buffer_in, thirdOfInts);
     do{
         //out is full - write
-        if(index_out==thirdOfInts){
-            flib_write(out_file, buffer_out, thirdOfInts);
+        if(index_out==numInts/2){
+            flib_write(out_file, buffer_out, numInts/2);
             index_out = 0;
         }
         //in is empty - read
-        if(index_in == numRead){
-            if(numRead!=thirdOfInts){
-                if(heapSize!=0){
+        if(index_in == readNums){
+            if(readNums!=numInts/2){
+                if(sizeOfHeap!=0){
                     readEverything = true;
                 }else{
                     if(index_out!=0){
@@ -175,25 +175,23 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
                     }
                     delete [] buffer_out;
                     delete [] buffer_in;
-                    delete [] heap;
                     flib_close(in_file);
                     flib_close(out_file);
                     return true;
                 }
             } else{
-                numRead = flib_read(in_file, buffer_in, thirdOfInts);
+                readNums = flib_read(in_file, buffer_in, numInts/2);
                 index_in = 0;
             }
         }
-        if(numRead==0){
+        if(readNums==0){
             readEverything = true;
         }
         //extract min - if smaller than absolute min, return false
-        int min = extractMin(heap, heapSize);
+        int min = extractMin(heap, sizeOfHeap);
         if(min<prev_min){
             //delete everything and close files
             delete [] buffer_in;
-            delete [] heap;
             delete [] buffer_out;
             flib_close(in_file);
             flib_close(out_file);
@@ -205,10 +203,10 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
             //add element from in
             //todo possibly leave out correcting right after extracting min
             if(!readEverything){
-                insertElement(buffer_in[index_in], heap, thirdOfInts-1);
+                insertElement(buffer_in[index_in], heap, sizeOfHeap-1);
                 index_in++;
             } else{
-                heapSize--;
+                sizeOfHeap--;
             }
         }
 
@@ -221,11 +219,11 @@ bool try_bonus(int32_t in_file, int32_t out_file, int thirdOfInts){
 
 void tarant_allegra ( int32_t in_file, int32_t out_file, int32_t bytes ){
     
-    int numInts = (bytes-250)/4/2;
-    int isSorted = try_bonus(in_file, out_file, numInts/3);
+    int numInts = (bytes-36)/4;
+    int isSorted = try_bonus(in_file, out_file, numInts);
     if (!isSorted){
-        printf("pozor pozor");
         //extract this somehow
+        printf("no bonus");
         flib_open(in_file, READ);
         int32_t * buffer = new int32_t [numInts];
         int numRead;
@@ -281,15 +279,15 @@ void create_random(int output, int size){
     total_sum_mod=0;
     flib_open(output, WRITE);
 //     srand(time(0));
-#define STEP 10ll
+#define STEP 100ll
     int val[STEP];
     for(int i=0; i<size; i+=STEP){
         for(int j=0; j<STEP && i+j < size; ++j){
             val[j]=-1000 + (rand()%(2*1000+1));
-            if(SORTED){
-                //my test
-                val[j] = i + j + rand()%2;
-            }
+//            if(SORTED){
+//                //my test
+//                val[j] = i + j + rand()%2;
+//            }
             total_sum_mod += val[j];
         }
         flib_write(output, val, (STEP < size-i) ? STEP : size-i);
@@ -329,19 +327,27 @@ int main(int argc, char **argv){
     flib_init_files(MAX_FILES);
     int INPUT = 0;
     int RESULT = 1;
-    int SIZE = 1000;
+    int SIZE = 110;
     srand(time(0));
 
 
-
-    for(SIZE = 10; SIZE<=1000;SIZE+=1){
-        for(int NB = 2000; NB<4000;NB+=147){
-            SORTED = rand()%2;
-            create_random(INPUT, SIZE);
-            tarant_allegra(INPUT, RESULT, NB);
-            check_result(RESULT, SIZE);
-        }
+    for(int i = 0; i<100;i++){
+        int halda = rand()%5000;
+        halda = halda>200 ? halda : 200;
+        create_random(INPUT, SIZE);
+        tarant_allegra(INPUT, RESULT, halda);
+        check_result(RESULT, SIZE);
     }
+
+
+
+//    for(SIZE = 10; SIZE<=1000;SIZE+=1){
+////            SORTED = rand()%2;
+//            create_random(INPUT, SIZE);
+//            tarant_allegra(INPUT, RESULT, 1000);
+//            check_result(RESULT, SIZE);
+//
+//    }
 
     flib_free_files();
     return 0;
